@@ -1,0 +1,16 @@
+page {
+  min-height: 100vh;
+  background: #f1e3c0;
+  color: #1f1a14;
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-weight: 900;
+}
+
+button {
+  font: inherit;
+}
+
+input,
+textarea {
+  font: inherit;
+}

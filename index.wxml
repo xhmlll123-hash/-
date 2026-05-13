@@ -1,0 +1,270 @@
+<view class="page {{themeClass}}">
+  <view wx:if="{{mode === 'template'}}" class="home-shell">
+    <view class="home-hero">
+      <view>
+        <view class="eyebrow">选择辅助</view>
+        <view class="home-title">纠结时，起一局</view>
+        <view class="home-subtitle">写下几个选项，让它们自己落入六象。</view>
+      </view>
+      <button class="ghost-button library-button" bindtap="openLibrary">选项库</button>
+    </view>
+
+    <view class="quick-panel">
+      <view class="quick-knot"></view>
+      <view class="quick-title">极速起局</view>
+      <view class="quick-subtitle">不用输入，心里想好 1 和 2 各代表什么，然后直接起局。</view>
+      <view class="quick-code-row">
+        <view class="quick-code-card">
+          <view class="quick-code-number">1</view>
+          <view class="quick-code-text">第一个念头</view>
+        </view>
+        <view class="quick-code-card">
+          <view class="quick-code-number">2</view>
+          <view class="quick-code-text">第二个念头</view>
+        </view>
+      </view>
+      <button class="primary-button quick-button" bindtap="quickStart">开始起局</button>
+    </view>
+
+    <view wx:if="{{errorMessage}}" class="error home-error">{{errorMessage}}</view>
+
+    <view class="home-section">
+      <view class="section-kicker">常用签牌</view>
+      <view class="template-grid home-template-grid">
+        <button
+          wx:for="{{templates}}"
+          wx:key="id"
+          class="template-card home-template-card"
+          data-id="{{item.id}}"
+          bindtap="selectTemplate"
+        >
+          <view class="template-seal">{{index + 1}}</view>
+          <view class="template-name">{{item.name}}</view>
+          <view class="template-desc">{{item.description}}</view>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{mode !== 'template'}}" class="topbar flow-topbar">
+    <button class="nav-button" bindtap="goBack">返回</button>
+    <view wx:if="{{mode === 'edit'}}">
+      <view class="eyebrow">写候选项</view>
+      <view class="title">{{session.title}}</view>
+    </view>
+    <view wx:elif="{{mode === 'result'}}">
+      <view class="eyebrow">六象速选</view>
+      <view class="title">落象已成</view>
+    </view>
+    <view wx:else>
+      <view class="eyebrow">历史记录</view>
+      <view class="title">选项库</view>
+    </view>
+    <button wx:if="{{mode === 'edit'}}" class="ghost-button" bindtap="backToTemplates">换场景</button>
+  </view>
+
+  <view wx:if="{{mode === 'edit' && session}}" class="panel edit-panel">
+    <view class="section-title">写下候选项</view>
+    <view class="muted">当前可抽 {{availableCount}} 个，点选项可从本轮移除。</view>
+
+    <view class="input-row">
+      <input
+        class="option-input"
+        value="{{optionInput}}"
+        placeholder="输入一个候选项"
+        bindinput="onOptionInput"
+        confirm-type="done"
+        bindconfirm="addTypedOption"
+      />
+      <button class="small-button" bindtap="addTypedOption">加入</button>
+    </view>
+
+    <view wx:if="{{availableOptions.length}}" class="chip-section">
+      <view class="label">本轮选择池</view>
+      <view class="chip-row">
+        <button
+          wx:for="{{availableOptions}}"
+          wx:key="*this"
+          class="chip selected-chip"
+          data-text="{{item}}"
+          bindtap="removePoolOption"
+        >
+          {{item}} ×
+        </button>
+      </view>
+    </view>
+
+    <view wx:if="{{suggestions.length}}" class="chip-section">
+      <view class="label">历史和示例</view>
+      <view class="chip-row">
+        <button
+          wx:for="{{suggestions}}"
+          wx:key="text"
+          class="chip {{item.source === 'history' ? 'history-chip' : 'example-chip'}}"
+          data-text="{{item.text}}"
+          bindtap="addSuggestedOption"
+        >
+          {{item.text}}
+        </button>
+      </view>
+    </view>
+
+    <view wx:if="{{excludedOptions.length}}" class="excluded-box">
+      <view class="excluded-head">
+        已去掉 {{excludedOptions.length}} 个
+        <button class="link-button" bindtap="restoreExcluded">恢复</button>
+      </view>
+      <view class="chip-row excluded-chip-row">
+        <view
+          wx:for="{{excludedOptions}}"
+          wx:key="*this"
+          class="chip excluded-chip"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>
+
+    <button class="primary-button" bindtap="randomize">六象速选</button>
+  </view>
+
+  <view wx:if="{{mode === 'result' && session}}" class="panel result-panel">
+    <view wx:if="{{session.currentDecision}}">
+      <view class="result-eyebrow">六象速选</view>
+      <view class="result-headline">{{revealStage === 'revealed' ? '落象已成' : '正在起象…'}}</view>
+
+      <view class="pool-preview">
+        <view class="pool-block">
+          <view class="label">选项池</view>
+          <view class="mini-chip-row">
+            <view
+              wx:for="{{session.currentDecision.optionPool}}"
+              wx:key="*this"
+              class="mini-chip {{revealStage === 'revealed' ? (item === session.currentDecision.optionText ? 'mini-chip-active' : '') : (index === flashOptionIndex ? 'mini-chip-flash' : '')}}"
+            >
+              {{item}}
+            </view>
+          </view>
+        </view>
+        <view class="pool-block">
+          <view class="label">六象池</view>
+          <view class="symbol-grid">
+            <view
+              wx:for="{{session.currentDecision.symbolCells}}"
+              wx:key="key"
+              class="six-symbol {{revealStage === 'revealed' ? (item.key === session.currentDecision.symbol.key ? 'six-symbol-active' : '') : (index === flashSymbolIndex ? 'six-symbol-flash' : '')}}"
+            >
+              <view class="six-symbol-text">{{item.name}}</view>
+              <view wx:if="{{item.optionTexts.length}}" class="six-symbol-options">
+                <view
+                  wx:for="{{item.optionTexts}}"
+                  wx:for-item="optionText"
+                  wx:key="*this"
+                  class="six-symbol-option {{optionText === session.currentDecision.optionText ? 'six-symbol-option-active' : ''}}"
+                >
+                  {{optionText}}
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="reveal-block {{revealStage === 'revealed' ? 'reveal-on' : 'reveal-off'}}">
+        <view class="result-card">
+          <view class="symbol-seal">首推</view>
+          <view class="result-option">{{session.currentDecision.optionText}}</view>
+          <view class="result-message">
+            {{session.currentDecision.symbol.name}} · 权重{{session.currentDecision.rankedOptions[0].score}}
+          </view>
+          <view class="result-message">{{session.currentDecision.message}}</view>
+        </view>
+
+        <view class="rank-block">
+          <view class="label">推荐权重</view>
+          <view
+            wx:for="{{session.currentDecision.rankedOptions}}"
+            wx:key="optionText"
+            class="rank-row {{index === 0 ? 'rank-row-primary' : ''}}"
+          >
+            <view class="rank-index">{{index + 1}}</view>
+            <view class="rank-main">
+              <view class="rank-option">{{item.optionText}}</view>
+              <view class="rank-hint">{{item.symbol.name}}：{{item.symbol.hint}}</view>
+            </view>
+            <view class="rank-score">{{item.score}}</view>
+          </view>
+        </view>
+
+        <view class="result-meta">
+          农历{{session.currentDecision.lunar.lunarMonth}}月{{session.currentDecision.lunar.lunarDay}}日 · {{session.currentDecision.chineseHour.name}}时起{{session.currentDecision.baseSymbol.name}}局
+        </view>
+        <view class="result-disclaimer">仅作娱乐化选择辅助，不用于医疗、法律、投资等重要决策。</view>
+        <view wx:if="{{showReflectionQuote}}" class="reflection-quote">
+          抛硬币的意义并不是它总能给出对的答案，而是你抛出它在空中的那一秒，你就知道你希望的结果是什么了
+          <view class="reflection-source">——《爱情公寓》</view>
+        </view>
+      </view>
+    </view>
+
+    <button class="primary-button" bindtap="acceptResult">接受</button>
+    <button class="secondary-button" bindtap="excludeResult">去掉首推重来</button>
+  </view>
+
+  <view wx:if="{{mode === 'result' && session && decisionAccepted}}" class="acceptance-cover">
+    <view class="acceptance-shell">
+      <view class="acceptance-mark">已定</view>
+      <view class="acceptance-eyebrow">本次选择</view>
+      <view class="acceptance-choice">{{session.currentResult}}</view>
+      <view class="acceptance-line"></view>
+      <view class="acceptance-quote">“{{acceptanceMessage}}”</view>
+      <button class="primary-button acceptance-button" bindtap="backToTemplates">再来一局</button>
+    </view>
+  </view>
+
+  <view wx:if="{{mode === 'library'}}" class="panel library-panel">
+    <view class="section-title">个人选项库</view>
+    <view class="muted">误存的选项可以删掉。</view>
+
+    <view wx:if="{{!libraryGroups.length}}" class="empty">还没有历史选项。完成一次速选后会自动保存。</view>
+
+    <view wx:for="{{libraryGroups}}" wx:key="templateId" class="library-group">
+      <view class="library-group-title">{{item.templateName}}</view>
+      <view wx:for="{{item.options}}" wx:for-item="option" wx:key="id" class="library-item">
+        <view>
+          <view class="library-text">{{option.text}}</view>
+          <view class="muted">进入候选池 {{option.poolCount}} 次 · 选中 {{option.chosenCount}} 次</view>
+        </view>
+        <button class="danger-button" data-id="{{option.id}}" bindtap="deleteHistoryOption">删除</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="theme-dock">
+    <view wx:if="{{showThemePicker}}" class="theme-popover">
+      <button
+        class="theme-swatch theme-swatch-porcelain {{theme === 'porcelain' ? 'theme-swatch-active' : ''}}"
+        data-theme="porcelain"
+        bindtap="selectTheme"
+      ></button>
+      <button
+        class="theme-swatch theme-swatch-paper {{theme === 'paper' ? 'theme-swatch-active' : ''}}"
+        data-theme="paper"
+        bindtap="selectTheme"
+      ></button>
+      <button
+        class="theme-swatch theme-swatch-blackgold {{theme === 'blackgold' ? 'theme-swatch-active' : ''}}"
+        data-theme="blackgold"
+        bindtap="selectTheme"
+      ></button>
+    </view>
+    <button class="theme-toggle" bindtap="toggleThemePicker">
+      <view class="theme-toggle-text">换肤</view>
+      <view class="theme-dot theme-dot-one"></view>
+      <view class="theme-dot theme-dot-two"></view>
+      <view class="theme-dot theme-dot-three"></view>
+    </button>
+  </view>
+</view>
