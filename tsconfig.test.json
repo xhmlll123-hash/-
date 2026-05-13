@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["miniprogram-api-typings", "node", "vitest/globals"]
+  },
+  "include": ["tests/**/*.ts", "vitest.config.ts"]
+}

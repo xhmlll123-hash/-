@@ -1,0 +1,11 @@
+.superpowers
+.superpowers/
+.worktrees
+.worktrees/
+.vscode/
+node_modules/
+miniprogram_npm/
+dist/
+coverage/
+npm-debug.log*
+project.private.config.json
