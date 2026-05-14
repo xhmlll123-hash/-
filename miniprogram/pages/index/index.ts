@@ -21,7 +21,6 @@ import { appendDecisionRecord, loadOptionLibrary, saveOptionLibrary } from '../.
 import type { DecisionSession, OptionItem, SuggestionItem, TemplateId } from '../../core/types';
 
 type ViewMode = 'template' | 'edit' | 'result' | 'library';
-type ThemeId = 'paper' | 'porcelain' | 'blackgold';
 type TemplateTapEvent = WechatMiniprogram.TouchEvent<
   WechatMiniprogram.IAnyObject,
   WechatMiniprogram.IAnyObject,
@@ -37,20 +36,12 @@ type OptionIdTapEvent = WechatMiniprogram.TouchEvent<
   WechatMiniprogram.IAnyObject,
   { id: string }
 >;
-type ThemeTapEvent = WechatMiniprogram.TouchEvent<
-  WechatMiniprogram.IAnyObject,
-  WechatMiniprogram.IAnyObject,
-  { theme: ThemeId }
->;
 
 type RevealStage = 'flashing' | 'revealed';
 
 interface IndexPageData {
   templates: typeof TEMPLATES;
   mode: ViewMode;
-  theme: ThemeId;
-  themeClass: string;
-  showThemePicker: boolean;
   session: DecisionSession | null;
   optionInput: string;
   optionLibrary: OptionItem[];
@@ -70,7 +61,6 @@ interface IndexPageData {
 
 const FLASH_INTERVAL_MS = 55;
 const FLASH_TICKS = 8;
-const THEME_STORAGE_KEY = 'choice_helper_theme_v1';
 const ACCEPTANCE_MESSAGES = [
   '相信自己的选择。',
   '一切都是最好的安排。',
@@ -184,9 +174,6 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
   data: {
     templates: TEMPLATES,
     mode: 'template',
-    theme: 'paper',
-    themeClass: 'theme-paper',
-    showThemePicker: false,
     session: null,
     optionInput: '',
     optionLibrary: [],
@@ -208,11 +195,19 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
   flashTimeout: null as number | null,
 
   onLoad() {
-    const optionLibrary = loadOptionLibrary();
-    const theme = this.loadTheme();
+    let optionLibrary = loadOptionLibrary();
+    let changed = false;
+    optionLibrary = optionLibrary.filter(opt => {
+      if (opt.templateId === 'custom' && ['1', '2', '3'].includes(opt.text)) {
+        changed = true;
+        return false;
+      }
+      return true;
+    });
+    if (changed) {
+      saveOptionLibrary(optionLibrary);
+    }
     this.setData({
-      theme,
-      themeClass: `theme-${theme}`,
       optionLibrary,
       libraryGroups: this.buildLibraryGroups(optionLibrary)
     });
@@ -221,7 +216,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
   goBack() {
     this.clearRevealAnimation();
     if (this.data.mode === 'result') {
-      if (this.data.decisionAccepted) {
+      if (this.data.decisionAccepted || (this.data.session && this.isPlaceholderQuickSession(this.data.session))) {
         this.backToTemplates();
         return;
       }
@@ -229,7 +224,6 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       this.setData(
         {
           mode: 'edit',
-          showThemePicker: false,
           showReflectionQuote: false,
           decisionAccepted: false,
           acceptanceMessage: ''
@@ -246,12 +240,11 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
 
   quickStart() {
     try {
-      const session = createQuickSession();
+      const session = createQuickSession('第一个念头', '第二个念头');
       this.setData(
         {
           session,
           errorMessage: '',
-          showThemePicker: false,
           showReflectionQuote: false,
           decisionAccepted: false,
           acceptanceMessage: ''
@@ -263,40 +256,8 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       );
     } catch (error) {
       this.setData({
-        errorMessage: error instanceof Error ? error.message : '先填两个不同选项。',
-        showThemePicker: false
+        errorMessage: error instanceof Error ? error.message : '先填两个不同选项。'
       });
-    }
-  },
-
-  toggleThemePicker() {
-    this.setData({ showThemePicker: !this.data.showThemePicker });
-  },
-
-  selectTheme(event: ThemeTapEvent) {
-    const theme = event.currentTarget.dataset.theme as ThemeId;
-    this.saveTheme(theme);
-    this.setData({
-      theme,
-      themeClass: `theme-${theme}`,
-      showThemePicker: false
-    });
-  },
-
-  loadTheme(): ThemeId {
-    try {
-      const value = wx.getStorageSync(THEME_STORAGE_KEY);
-      return value === 'porcelain' || value === 'blackgold' || value === 'paper' ? value : 'paper';
-    } catch {
-      return 'paper';
-    }
-  },
-
-  saveTheme(theme: ThemeId) {
-    try {
-      wx.setStorageSync(THEME_STORAGE_KEY, theme);
-    } catch {
-      // Theme persistence is optional; UI can still work without storage.
     }
   },
 
@@ -311,8 +272,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
         errorMessage: '',
         showReflectionQuote: false,
         decisionAccepted: false,
-        acceptanceMessage: '',
-        showThemePicker: false
+        acceptanceMessage: ''
       },
       () => this.refreshDerivedState()
     );
@@ -331,8 +291,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       errorMessage: '',
       showReflectionQuote: false,
       decisionAccepted: false,
-      acceptanceMessage: '',
-      showThemePicker: false
+      acceptanceMessage: ''
     });
   },
 
@@ -354,8 +313,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       {
         session: next,
         optionInput: '',
-        errorMessage: '',
-        showThemePicker: false
+        errorMessage: ''
       },
       () => this.refreshDerivedState()
     );
@@ -370,8 +328,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     this.setData(
       {
           session: next,
-          errorMessage: '',
-          showThemePicker: false
+          errorMessage: ''
       },
       () => this.refreshDerivedState()
     );
@@ -415,8 +372,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
         libraryGroups: this.buildLibraryGroups(library),
         showReflectionQuote: false,
         decisionAccepted: false,
-        acceptanceMessage: '',
-        showThemePicker: false
+        acceptanceMessage: ''
       },
       () => this.drawCurrentSession()
     );
@@ -434,21 +390,23 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
           session: next,
           mode: 'result',
           errorMessage: '',
-          revealStage: 'flashing',
-          flashOptionIndex: 0,
-          flashSymbolIndex: 0,
+          revealStage: 'revealed',
+          flashOptionIndex: -1,
+          flashSymbolIndex: -1,
           showReflectionQuote,
           decisionAccepted: false,
-          acceptanceMessage: '',
-          showThemePicker: false
+          acceptanceMessage: ''
         },
         () => {
           this.refreshDerivedState();
-          this.startRevealAnimation();
         }
       );
     } catch {
       this.clearRevealAnimation();
+      if (this.isPlaceholderQuickSession(session)) {
+        this.backToTemplates();
+        return;
+      }
       this.setData(
         {
           mode: 'edit',
@@ -461,28 +419,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
   },
 
   startRevealAnimation() {
-    const session = this.data.session;
-    const decision = session?.currentDecision;
-    if (!decision) return;
-
-    const optionLen = decision.optionPool.length || 1;
-    const symbolLen = decision.symbolPool.length || 1;
-
-    let tick = 0;
-    this.flashTimer = setInterval(() => {
-      tick += 1;
-      this.setData({
-        flashOptionIndex: tick % optionLen,
-        flashSymbolIndex: tick % symbolLen
-      });
-    }, FLASH_INTERVAL_MS) as unknown as number;
-
-    this.flashTimeout = setTimeout(() => {
-      this.clearRevealAnimation();
-      if (this.data.mode === 'result') {
-        this.setData({ revealStage: 'revealed' });
-      }
-    }, FLASH_INTERVAL_MS * FLASH_TICKS) as unknown as number;
+    // Skipping flashing animation, we directly go to 'revealed' stage.
   },
 
   clearRevealAnimation() {
@@ -505,6 +442,23 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     if (!session) return;
 
     this.clearRevealAnimation();
+
+    if (this.isPlaceholderQuickSession(session)) {
+      let next = restoreExcludedOptions(session);
+      next = excludeCurrentResult({ ...next, currentResult: session.currentResult });
+      this.setData(
+        {
+          session: next,
+          errorMessage: '',
+          showReflectionQuote: true,
+          decisionAccepted: false,
+          acceptanceMessage: ''
+        },
+        () => this.drawCurrentSession(true, true)
+      );
+      return;
+    }
+
     const next = excludeCurrentResult(session);
     this.setData(
         {
@@ -512,8 +466,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
           errorMessage: '',
           showReflectionQuote: true,
           decisionAccepted: false,
-          acceptanceMessage: '',
-          showThemePicker: false
+          acceptanceMessage: ''
         },
       () => this.drawCurrentSession(true, true)
     );
@@ -546,8 +499,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       revealStage: 'revealed',
       showReflectionQuote: false,
       decisionAccepted: true,
-      acceptanceMessage: this.pickAcceptanceMessage(session.currentResult, now),
-      showThemePicker: false
+      acceptanceMessage: this.pickAcceptanceMessage(session.currentResult, now)
     });
   },
 
@@ -567,8 +519,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
         errorMessage: '',
         showReflectionQuote: false,
         decisionAccepted: false,
-        acceptanceMessage: '',
-        showThemePicker: false
+        acceptanceMessage: ''
       },
       () => this.refreshDerivedState()
     );
@@ -581,8 +532,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       errorMessage: '',
       showReflectionQuote: false,
       decisionAccepted: false,
-      acceptanceMessage: '',
-      showThemePicker: false
+      acceptanceMessage: ''
     });
   },
 
@@ -604,8 +554,8 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       session.templateId === 'custom' &&
       session.title === '极速起局' &&
       session.pool.length === 2 &&
-      session.pool[0] === '1' &&
-      session.pool[1] === '2'
+      session.pool[0] === '第一个念头' &&
+      session.pool[1] === '第二个念头'
     );
   },
 

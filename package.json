@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.test.json",
+    "devtools:open": "weapp open -p"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",
     "miniprogram-api-typings": "^4.0.5",
+    "miniprogram-automator": "^0.12.1",
     "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "weapp-ide-cli": "^5.2.9"
   }
 }
