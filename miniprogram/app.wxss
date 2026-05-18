@@ -7,7 +7,19 @@ page {
 }
 
 button {
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
   font: inherit;
+  color: inherit;
+  text-align: inherit;
+}
+
+button::after {
+  border: 0;
 }
 
 input,

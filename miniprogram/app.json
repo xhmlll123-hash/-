@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "帮我选一下",
+    "navigationBarBackgroundColor": "#f7f4ec",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f4ec"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
